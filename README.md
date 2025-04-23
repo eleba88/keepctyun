@@ -1,11 +1,21 @@
 # 🚀 天冀云电脑Docke保活
-### 1️⃣ 推荐Docker部署
+### 1️⃣ 推荐Docker部署,注意一下网卡的mtu
 docker-compose.yml
 ```
+version: "3"
+networks:
+  nasnet:
+    driver: bridge
+    driver_opts:
+      com.docker.network.driver.mtu: 1450
+    ipam:
+      config:
+        - subnet: 10.0.0.0/24
 services:
   ctyun:
-    image: keepctyun:latest
+    image: ghcr.nju.edu.cn/eleba88/keepctyun:latest
     container_name: ctyun
+    networks: [nasnet]
     restart: always
     volumes:
       - './ctyun:/usr/src/server/data'
@@ -18,3 +28,5 @@ $ docker-compose up -d
 $ docker logs -f ctyun
 ```
 第一次需要扫码登陆即可,后续会直接登陆
+
+![image](https://github.com/eleba88/keepctyun/blob/master/screenshot/pic_01.png)
