@@ -3,3 +3,5 @@ services:
     image: keepctyun:latest
     container_name: ctyun
     restart: always
+    volumes:
+      - './ctyun:/usr/src/server/data'
