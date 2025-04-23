@@ -1,0 +1,5 @@
+services:
+  ctyun:
+    image: keepctyun:latest
+    container_name: ctyun
+    restart: always

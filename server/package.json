@@ -1,0 +1,16 @@
+{
+  "name": "keeyctyun",
+  "version": "1.0.0",
+  "description": "天冀天电脑保活",
+  "author": "wj2008",
+  "license": "MIT",
+  "scripts": {
+    "start": "node ./ctyun.js"
+  },
+  "dependencies": {
+    "puppeteer": "^24.7.0",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "qrcode": "^1.5.4"
+  }
+}
