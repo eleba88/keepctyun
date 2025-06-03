@@ -19,6 +19,8 @@ services:
     restart: always
     volumes:
       - './ctyun:/usr/src/server/data'
+    environment:
+      - TZ=Asia/Shanghai
 ```
 ### 2️⃣ 首次需要扫码
 ```
