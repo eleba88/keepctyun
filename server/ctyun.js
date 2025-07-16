@@ -44,19 +44,23 @@ async function reloadQrCode(page) {
   }
 }
 
+async function waitForQrExpireVisible(page) {
+  await new Promise(resolve => setTimeout(resolve, 10 * 1000 + 5 * 60 * 1000));
+  logger(`二维码超时,重新加载`);
+  await reloadQrCode(page);
+}
+
 async function handleApiResponse(page, response) { 
   try {
     const url = response.url();
     const method = response.request().method();
     if (!['GET', 'POST'].includes(method)) return;
     if (url === 'https://desk.ctyun.cn:8810/api/auth/client/qrCode/genData') {
-      logger(`发现需要扫码登陆`);
-      const resp = await response.json()
-      let qrCodeId = resp?.data?.qrCodeId;
-      let qrUrl = `https://desk.ctyun.cn:443/selforder/#/login-confirm?qrCodeId=${qrCodeId}&loginMode=1`
+      await page.waitForSelector('div.self-qr', { visible: true });
+      const qrUrl = await page.$eval('div.self-qr', el => el.getAttribute('title'));
       let code = await QRCode.toString(qrUrl, { type: 'terminal', errorCorrectionLevel: 'L' });
-      console.log(code);
-      logger(`或打开以下链接:\n https://www.olzz.com/qr/?text=${encodeURIComponent(qrUrl)}`);
+      console.log(`请扫码\n${code}\n或打开以下链接:\n https://www.olzz.com/qr/?text=${encodeURIComponent(qrUrl)}`);
+      waitForQrExpireVisible(page);
     } else if (url === 'https://desk.ctyun.cn:8810/api/desktop/client/list') {
       await loginSubmit(page);
     } else if (url === 'https://desk.ctyun.cn:8810/api/desktop/client/connect') {
@@ -64,12 +68,6 @@ async function handleApiResponse(page, response) {
       logger(`设备登陆状态: ${resp?.data?.desktopInfo?.status}`);
     } else if (url === 'https://desk.ctyun.cn:8810/api/auth/client/logout') {
       logger(`当前设备被挤下线了`);
-    } else if (url.includes('https://desk.ctyun.cn:8810/api/auth/client/qrCode/getStatus')) { 
-      const resp = await response.json();
-      if ('expire' === resp.data.codeStatus) {
-        logger(`二维码已超时，准备刷新`);
-        await reloadQrCode(page);
-      }
     }
   } catch (error) {
     console.log('onResponse error', error);
@@ -84,8 +82,8 @@ async function main() {
   });
   await browser.launch();
   const page = await browser.getPage();
-  page.on('response', (response) => handleApiResponse(page, response));;
-  await page.goto('https://pc.ctyun.cn/', {waitUntil: 'domcontentloaded', timeout: 60000 });
+  page.on('response', (response) => handleApiResponse(page, response));
+  await page.goto('https://pc.ctyun.cn/', { waitUntil: 'domcontentloaded', timeout: 60000 });
 }
 
 (async () => {
