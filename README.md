@@ -21,6 +21,7 @@ services:
       - './ctyun:/usr/src/server/data'
     environment:
       - TZ=Asia/Shanghai
+      - WEBHOOK_URL=https://a.bc.com/v1/webhook
 ```
 ### 2️⃣ 首次需要扫码
 ```
