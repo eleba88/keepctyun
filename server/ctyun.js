@@ -1,7 +1,9 @@
 const Browser = require('./Browser');
 const path = require('path');
-const QRCode = require('qrcode');
+const qrterminal = require('qrcode-terminal');
+const axios = require('axios');
 const dataPath = path.join(__dirname, 'data');
+let runSubmit = false;
 
 function getTimestamp() {
   const now = new Date();
@@ -13,41 +15,20 @@ function logger(...args) {
 }
 
 async function loginSubmit(page) {
+  if (runSubmit) return;
+  runSubmit = true;
   logger('尝试检查是否进入主界面');
-  await page.waitForSelector('div.desktop-main-entry', { visible: true });
+  await page.waitForSelector('div.desktopcom-enter', { visible: true });
   logger('厉害了铁子, 进入了主界面');
-  await page.click('div.desktop-main-entry');
+  await page.click('div.desktopcom-enter');
   logger('点击了 "进入" 按钮');
-}
-
-async function reloadQrCode(page) {
-  const buttons = await page.$$('button.el-button.el-button--primary.el-button--small');
-  for (let i = 0; i < buttons.length; i++) {
-    const button = buttons[i];
-    const isParentVisible = await page.evaluate(button => {
-      const parent = button.closest('div');
-      const style = window.getComputedStyle(parent);
-      return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity > 0;
-    }, button);
-    if (isParentVisible) {
-      const isButtonVisible = await page.evaluate(button => {
-        const style = window.getComputedStyle(button);
-        return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity > 0;
-      }, button);
-
-      if (isButtonVisible) {
-        await button.click();
-        console.log('按钮已点击');
-        break;
-      }
-    }
-  }
+  runSubmit = false;
 }
 
 async function waitForQrExpireVisible(page) {
   await new Promise(resolve => setTimeout(resolve, 10 * 1000 + 5 * 60 * 1000));
   logger(`二维码超时,重新加载`);
-  await reloadQrCode(page);
+  await page.goto('https://pc.ctyun.cn/', { waitUntil: 'domcontentloaded', timeout: 60000 });
 }
 
 async function handleApiResponse(page, response) { 
@@ -58,19 +39,35 @@ async function handleApiResponse(page, response) {
     if (url === 'https://desk.ctyun.cn:8810/api/auth/client/qrCode/genData') {
       await page.waitForSelector('div.self-qr', { visible: true });
       const qrUrl = await page.$eval('div.self-qr', el => el.getAttribute('title'));
-      let code = await QRCode.toString(qrUrl, { type: 'terminal', errorCorrectionLevel: 'L' });
-      console.log(`请扫码\n${code}\n或打开以下链接:\n https://www.olzz.com/qr/?text=${encodeURIComponent(qrUrl)}`);
+      if (qrUrl) {
+        console.log(`打开链接: https://www.olzz.com/qr/?text=${encodeURIComponent(qrUrl)}  或扫码`);
+        qrterminal.generate(qrUrl, { small: true });
+      } else { 
+        logger(`二维码异常,重新加载`);
+      }
       waitForQrExpireVisible(page);
-    } else if (url === 'https://desk.ctyun.cn:8810/api/desktop/client/list') {
+    } else if (url === 'https://desk.ctyun.cn:8810/api/desktop/client/pageDesktop') {
       await loginSubmit(page);
     } else if (url === 'https://desk.ctyun.cn:8810/api/desktop/client/connect') {
       const resp = await response.json();
-      logger(`设备登陆状态: ${resp?.data?.desktopInfo?.status}`);
+      let status = resp?.data?.desktopInfo?.status || '登录未知';
+      logger(`设备登陆状态: ${status}`);
+      notifyWebhook(status)
     } else if (url === 'https://desk.ctyun.cn:8810/api/auth/client/logout') {
       logger(`当前设备被挤下线了`);
+      notifyWebhook('挤下线');
     }
   } catch (error) {
     console.log('onResponse error', error);
+  }
+}
+
+async function notifyWebhook(status) {
+  try {
+    if (process.env.WEBHOOK_URL) {
+      await axios.post(process.env.WEBHOOK_URL, { title: '天冀云电脑', content: `设备:${status}` }, { headers: { 'x-requested-id': '66fa52b9-3b8c-43bb-8660-88dc87a0' } });
+    }
+  } catch (error) {
   }
 }
 
@@ -84,6 +81,7 @@ async function main() {
   const page = await browser.getPage();
   page.on('response', (response) => handleApiResponse(page, response));
   await page.goto('https://pc.ctyun.cn/', { waitUntil: 'domcontentloaded', timeout: 60000 });
+  logger('程序启动完成');
 }
 
 (async () => {

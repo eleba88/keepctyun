@@ -8,10 +8,10 @@
     "start": "node ./ctyun.js"
   },
   "dependencies": {
+    "axios": "^1.13.2",
     "puppeteer": "^24.7.0",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
-    "qrcode": "^1.5.4",
-    "winston": "^3.17.0"
+    "qrcode-terminal": "^0.12.0"
   }
 }
